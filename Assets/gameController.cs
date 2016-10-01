@@ -13,14 +13,15 @@ public class gameController : MonoBehaviour {
 
     int P1Score = 0;
     int P2Score = 0;
-    bool P1Turn;
+    bool P1Turn = true;
     enum ThrowNumber { t1 = 1,t2,t3 };
     ThrowNumber throwNumber = ThrowNumber.t1;
 
     public Vector3 dartOffset;
     public Vector3 dartAngle;
     public GameObject dartPre;
-    private GameObject currentDart;
+    GameObject currentDart;
+    Queue<GameObject> darts = new Queue<GameObject>();
 
     public ScoringValue scoringValue;
 
@@ -78,18 +79,42 @@ public class gameController : MonoBehaviour {
                     GameObject dart = (GameObject)Instantiate(dartPre, hit.point + new Vector3(0, 0, -0.35f), Quaternion.Euler(Vector3.zero));
                     dart.GetComponentInChildren<Animation>().Play("Throw");
                     currentDart = dart;
+                    darts.Enqueue(dart);
                     Score score = decodeScore(hit.point);
-                    Debug.Log("number: " + score.Number + " multiplier: " + score.scoreMultiplier + " points: " + score.Points);
-
-                    if (score.scoreMultiplier == Score.ScoreMultiplier.x1)
+                    if (P1Turn)
                     {
+                        P1Score += score.Points;
+                        StatusTxt.text = "Player one";
+                    }
+                    else
+                    {
+                        P2Score += score.Points;
+                        StatusTxt.text = "Player two";
+                    }
+                    StatusTxt.text += " scored <i>"+score.Points+"</i>.";
 
-                    } 
+                    if(throwNumber == ThrowNumber.t3)
+                    {
+                        P1Turn = !P1Turn;
+                        StatusTxt.text += " Next player";
+                        throwNumber = ThrowNumber.t1;
+                    }
+                    else { throwNumber++; }
+                    
                 }
             }
             else if(mode == Mode.Dart && progress == 0)
             {
                 mode = Mode.Main;
+                if (throwNumber == ThrowNumber.t1)
+                {
+                    while (darts.Count > 0)
+                    {
+                        GameObject d = darts.Dequeue();
+                        d.GetComponentInChildren<Animation>().Play("Drop"); ;
+                        Destroy(d, 1f);
+                    }
+                }
             }
         }
 	}
@@ -226,9 +251,15 @@ public class gameController : MonoBehaviour {
         if (offset.x < 0)
         {
             angle *= -1;
+            angle += 360;
             angle %= 360;
         }
-        
+
+        if (angle<0)
+        {
+            Debug.LogError("Angle is "+angle+". It is negative");
+        }
+
         if (angle<scoringValue.scoringAngles.angle20_1)
         {
             score.Number = 20;
